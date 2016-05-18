@@ -21,23 +21,24 @@
  +void runEratosthenesSieve(long long upperBound, int numThreads, bool print) {
  +    int upperBoundSquareRoot = (int)sqrt(upperBound);
  +    bool *marked = new bool[upperBound + 1];
- +    
+ +
  +    memset(marked, 0, sizeof(bool) * (upperBound + 1));
- +    
+ +
  +    for (long long m = 2; m <= upperBoundSquareRoot; m++)
  +        if (!marked[m])
+ +#pragma omp parallel for num_threads(numThreads)
  +            for (long long k = m * m; k <= upperBound; k += m)
  +                marked[k] = true;
- +    
+ +
  +    if (print)
  +        printUnmarked(upperBound, marked);
- +    
+ +
  +    delete [] marked;
  +}
  +
  +int main(int argc, const char * argv[]) {
 
  +    runEratosthenesSieve(pow(2, 30), 4, false);
- + 
+
  +    return 0;
  +}
