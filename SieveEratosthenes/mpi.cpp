@@ -22,7 +22,7 @@ void printUnmarked(long long upperBound, bool *marked) {
 void runEratosthenesSieve(long long upperBound, int numThreads, bool print) {
     int upperBoundSquareRoot = (int)sqrt(upperBound), size = upperBound + 1, rank = 0, numtasks = 0;
     bool *marked = new bool[size];
-    bool *recvbuf = new bool[size/4];
+    bool *recvbuf = new bool[size / 4];
 
      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
      MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
@@ -31,13 +31,15 @@ void runEratosthenesSieve(long long upperBound, int numThreads, bool print) {
 
     for (long long m = 2; m <= upperBoundSquareRoot; m++) {
         MPI_Bcast(&m, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-        if (!marked[m])
-        MPI_Scatter(marked, size, MPI_C_BOOL, recvbuf, size/4, MPI_C_BOOL, 0, MPI_COMM_WORLD);
+        if (!marked[m]) {
+            MPI_Scatter(marked, size/4, MPI_C_BOOL, recvbuf, size/4, MPI_C_BOOL, 0, MPI_COMM_WORLD);
+            
             for (long long k = (rank*upperBound/4 + 2) * m; k <= upperBound/4*(rank + 1); k += m)
                 recvbuf[k+(rank*size/4)] = true;
                 //marked[k] = true;
+        }
     }
-    MPI_Gather(&recvbuf, size/4, MPI_C_BOOL, marked, size, MPI_C_BOOL, 0, MPI_COMM_WORLD);
+    MPI_Gather(&marked, size/4, MPI_C_BOOL, recvbuf, size/4, MPI_C_BOOL, 0, MPI_COMM_WORLD);
 
     if (print)
         printUnmarked(upperBound, marked);
@@ -48,7 +50,9 @@ void runEratosthenesSieve(long long upperBound, int numThreads, bool print) {
 int main(int argc, char * argv[]) {
     MPI_Init(&argc,&argv);
 
-    runEratosthenesSieve(pow(2, 30), 4, false);
+    runEratosthenesSieve(pow(2, 25), 1, false);
+    
+    MPI_Finalize();
 
     return 0;
 }
