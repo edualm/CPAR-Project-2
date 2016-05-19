@@ -38,6 +38,6 @@
  +int main(int argc, const char * argv[]) {
 
  +    runEratosthenesSieve(pow(2, 30), 4, false);
- + 
+ +
  +    return 0;
  +}
