@@ -9,22 +9,36 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <omp.h>
 
 int main (int argc, char ** argv) {
-  int i;
+  long long i;
   long long n;
-  int index;
-  int size;
-  int prime;
-  int count;
+  long long index;
+  long long size;
+  long long prime;
+  long long count;
   long long global_count;
-  int first;
+  long long first;
   long int high_value;
   long int low_value;
   int comm_rank;
   int comm_size;
   char * marked;
   double runtime;
+  
+  int numThreads = 4;
+  
+  int thnum, thtotal;
+  int pid, np;
+
+
+#pragma omp parallel private(thnum,thtotal) num_threads(numThreads)
+  {
+    thnum = omp_get_thread_num();
+    thtotal = omp_get_num_threads();
+    printf("parallel: %d out of %d from proc %d out of %d\n", thnum, thtotal, pid, np);
+  }
 
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank);
@@ -40,11 +54,11 @@ int main (int argc, char ** argv) {
     exit(1);
   }
 
-  n = atoi(argv[1]);
+  n = atoll(argv[1]);
 
   // Bail out if all the primes used for sieving are not all held by
   // process zero.
-  if ((2 + (n - 1 / comm_size)) < (int) sqrt((double) n)) {
+  if ((2 + (n - 1 / comm_size)) < (long long) sqrt((double) n)) {
     if (comm_rank == 0) printf("Too many processes.\n");
     MPI_Finalize();
     exit(1);
@@ -59,9 +73,9 @@ int main (int argc, char ** argv) {
   marked = (char *) calloc(size, sizeof(char));
 
   if (marked == NULL) {
-   printf("Cannot allocate enough memory.\n");
-   MPI_Finalize();
-   exit(1);
+    printf("Cannot allocate enough memory.\n");
+    MPI_Finalize();
+    exit(1);
   }
 
   if (comm_rank == 0) index = 0;
@@ -75,18 +89,22 @@ int main (int argc, char ** argv) {
       else first = prime - (low_value % prime);
     }
 
-    for (i = first; i < size; i += prime) marked[i] = 1;
+#pragma omp parallel for private(i) num_threads(numThreads)
+    for (i = first; i < size; i += prime)
+      marked[i] = 1;
 
     if (comm_rank == 0) {
       while (marked[++index]);
       prime = index + 2;
     }
 
-    if (comm_size > 1) MPI_Bcast(&prime,  1, MPI_INT, 0, MPI_COMM_WORLD);
+    if (comm_size > 1)
+      MPI_Bcast(&prime,  1, MPI_INT, 0, MPI_COMM_WORLD);
   } while (prime * prime <= n);
 
   count = 0;
 
+  #pragma omp parallel for reduction(+:count) private(i) num_threads(numThreads)
   for (i = 0; i < size; i++) if (marked[i] == 0) count++;
 
   if (comm_size > 1) {
